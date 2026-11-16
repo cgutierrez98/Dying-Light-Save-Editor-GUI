@@ -18,7 +18,7 @@ BANNED_MODULES = {
     "webbrowser",
     "winreg",
     "pathlib",
-    "builtins"
+    "builtins",
     "sys"
 }
 

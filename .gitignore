@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+
+# PyInstaller / Build
+build/
+dist/
+
+# Editor & Temporary files
+*.sav(edited).json
+._tmp.*
+config.json
+backups/
+
+# IDE
+.vscode/
+.idea/
