@@ -250,7 +250,7 @@ class DialogsMixin:
         win.configure(bg=BG_MAIN)
         win.transient(self)
 
-        tk.Label(win, text="Dying Light Save Editor GUI 1.6", bg=BG_MAIN, fg=ACCENT_ORANGE, font=("Segoe UI", 14, "bold")).pack(pady=(20, 5))
+        tk.Label(win, text=f"Dying Light Save Editor GUI {CURRENT_VERSION}", bg=BG_MAIN, fg=ACCENT_ORANGE, font=("Segoe UI", 14, "bold")).pack(pady=(20, 5))
         tk.Label(win, text="By EllisGamingTv", bg=BG_MAIN, fg=FG_MAIN, font=("Segoe UI", 11)).pack(pady=(0, 10))
 
         tk.Label(

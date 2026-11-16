@@ -21,7 +21,8 @@ from logic.cheats import (
 from logic.plugin_loader import load_plugins
 from logic.updater import check_updates_async
 from logic.config import load_config, save_config, create_save_backup, list_save_backups, atomic_replace, prune_backups
-from logic.validation import validate_save_data
+from logic.save_service import SaveService, SaveError
+from logic.version import CURRENT_VERSION
 from logic.item_names import (
     ITEM_DICTIONARY, ADD_ITEM_PRESETS,
     get_display_name, get_socket_display_name, get_craftplan_display_name,
@@ -43,6 +44,3 @@ JSON_PATH = os.path.join(EDITOR_DIR, "save_coop_0.sav(edited).json")
 # Carpetas y archivos temporales seguros
 TEMP_DIR = os.path.join(tempfile.gettempdir(), "dying_light_save_editor")
 os.makedirs(TEMP_DIR, exist_ok=True)
-# Un nombre unico por proceso evita que dos instancias se pisen
-TEMP_JSON = os.path.join(TEMP_DIR, f"._tmp_{os.getpid()}.json")
-TEMP_SAVE = os.path.join(TEMP_DIR, f"._tmp_{os.getpid()}.sav")

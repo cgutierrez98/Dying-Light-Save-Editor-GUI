@@ -1,4 +1,4 @@
-﻿"""Validacion basica del JSON del save antes de cifrarlo."""
+"""Validacion basica del JSON del save antes de cifrarlo."""
 import math
 
 INT32_MAX = 2**31 - 1

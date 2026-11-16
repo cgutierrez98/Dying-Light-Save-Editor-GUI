@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import shutil
 from datetime import datetime
@@ -33,7 +33,7 @@ def create_save_backup(save_path):
     os.makedirs(backup_dir, exist_ok=True)
 
     base_name = os.path.basename(save_path)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     backup_filename = f"{base_name}.bak_{timestamp}"
     backup_path = os.path.join(backup_dir, backup_filename)
 

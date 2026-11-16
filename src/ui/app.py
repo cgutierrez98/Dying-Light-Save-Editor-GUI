@@ -9,7 +9,7 @@ from ui.actions import ActionsMixin
 class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Dying Light Save Editor GUI 1.6")
+        self.title(f"Dying Light Save Editor GUI {CURRENT_VERSION}")
         self.geometry("1160x780")
         self.minsize(980, 640)
 
@@ -18,6 +18,17 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
 
         self.config_data = load_config()
         self.editor_exe_path = self.config_data.get("editor_exe_path")
+        self.save_service = SaveService(
+            editor_path=self.editor_exe_path,
+            temp_dir=TEMP_DIR,
+            candidates=[
+                os.path.join(EDITOR_DIR, "editor.exe"),
+                os.path.join(EDITOR_DIR, "editor.exe.exe"),
+                os.path.join(os.path.dirname(sys.executable), "editor.exe"),
+                os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "editor.exe"),
+            ],
+        )
+        self._op_lock = threading.RLock()
 
         saved_save_path = self.config_data.get("last_save_path")
         if saved_save_path and os.path.exists(saved_save_path):
@@ -37,7 +48,12 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
         self.skill_map = {}
         self.clipboard_data = None
         self.global_map = {}
-        self.plugins = load_plugins(confirm=self._confirm_plugin, trusted=self.config_data.setdefault('trusted_plugins', {}))
+        self._plugin_errors = []
+        self.plugins = load_plugins(
+            confirm=self._confirm_plugin,
+            trusted=self.config_data.setdefault('trusted_plugins', {}),
+            on_error=lambda name, err: self._plugin_errors.append(f"{name}: {err}"),
+        )
         save_config(self.config_data)
         self.socket_options = SOCKET_UPGRADES
         self.console_visible = False
@@ -70,6 +86,12 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
                     plugin["init_ui"](self)
                 except Exception as e:
                     print(f"[PLUGIN INIT ERROR] {plugin.get('name')}: {e}")
+                    self._plugin_errors.append(f"{plugin.get('name')} (init_ui): {e}")
+        if self._plugin_errors:
+            self.after(300, lambda: messagebox.showwarning(
+                "Plugin errors",
+                "Some plugins failed to load:\n\n" + "\n".join(self._plugin_errors)
+            ))
 
     # ==================== MENÚ SUPERIOR NATIVO ====================
     def create_menu(self):
@@ -256,10 +278,10 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
         self.is_dirty = dirty
         filename = os.path.basename(self.save_path) if self.save_path else "Untitled"
         if dirty:
-            self.title(f"● Dying Light Save Editor GUI 1.6 - {filename} * (Unsaved Changes)")
+            self.title(f"● Dying Light Save Editor GUI {CURRENT_VERSION} - {filename} * (Unsaved Changes)")
             self.dirty_badge.config(text="● MODIFIED", fg=ACCENT_ORANGE)
         else:
-            self.title(f"Dying Light Save Editor GUI 1.6 - {filename}")
+            self.title(f"Dying Light Save Editor GUI {CURRENT_VERSION} - {filename}")
             self.dirty_badge.config(text="✓ SAVED", fg="#4caf50")
 
     def check_unsaved_changes(self):
@@ -279,7 +301,8 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
             return False
 
     def set_busy(self, busy=True, status_text=""):
-        self.is_busy = busy
+        with self._op_lock:
+            self.is_busy = busy
         if busy:
             try:
                 self.config(cursor="wait")
@@ -313,6 +336,9 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
 
     # ==================== DIÁLOGO AÑADIR ITEM DIRECTAMENTE ====================
     def on_close(self):
+        if self.is_busy:
+            messagebox.showinfo("Busy", "An operation is in progress. Please wait until it finishes.")
+            return
         if not self.check_unsaved_changes():
             return
         sys.stdout = self._orig_stdout

@@ -1,81 +1,107 @@
 # Dying Light Save Editor GUI
-This project is a tool designed to be a GUI for the Dying Light CLI save editor by Steffen. Can be found [here](https://steffenl.com/projects/dying-light-save-editor/releases).
 
-It allows users to edit player stats, skills, and other in-game values in a simple interface. (basically its a json editor).
+Interfaz gr谩fica (GUI) para el editor de partidas guardadas por l铆nea de comandos de Dying Light desarrollado por **Steffen** (disponible en [su web oficial](https://steffenl.com/projects/dying-light-save-editor/releases)).
 
-The goal of this project is to provide a reliable and easy-to-use editor for customizing gameplay without manually editing save files.
+> **Nota:** Este proyecto es un *fork* del trabajo original de [EllisGamingTv](https://github.com/EllisGamingTv/Dying-Light-Save-Editor-GUI), ampliado con mejoras de arquitectura, desacople de l贸gica, guardado at贸mico, validaci贸n de integridad, gesti贸n robusta de copias de seguridad y verificaci贸n de plugins.
 
-## Features
+Permite modificar estad铆sticas del jugador, habilidades, inventario, armas y otros valores de la partida a trav茅s de una interfaz visual clara e intuitiva.
 
-* Edit player statistics
-* Edit inventory
-* Edit skills
+---
 
-## Releases
+## Caracter铆sticas
 
-[Downloads](https://github.com/EllisGamingTv/Dying-Light-Save-Editor-GUI/releases)
+* **Estad铆sticas del jugador:** Edici贸n de salud, furia y dinero.
+* **Inventario y armas:** Modificaci贸n de durabilidad, reparaciones, cantidad, rareza (incluyendo platino), planos de crafteo y engarces/mejoras (sockets).
+* **Gesti贸n de munici贸n:** Pesta帽a dedicada con acceso r谩pido para maximizar todo tipo de munici贸n.
+* **脕rbol de habilidades:** Edici贸n de niveles y adici贸n de habilidades de leyenda o especiales.
+* **Guardado seguro y at贸mico:** Reemplazo at贸mico de archivos que previene la corrupci贸n de partidas en caso de fallo o corte de energ铆a.
+* **Copias de seguridad autom谩ticas:** Creaci贸n de un backup previo a cada guardado y ventana de restauraci贸n integrada.
+* **Buscador y filtros:** B煤squeda r谩pida por nombre y categor铆a de 铆tems.
+* **Sistema de plugins:** Capacidad para a帽adir pesta帽as y herramientas personalizadas.
 
-## How to Use
+---
 
-editor.exe and your save file save_coop_0.sav must be at C:\Editor
+## Descargas y Versiones
 
-## EXE Requirements
+Puedes descargar los ejecutables compilados directamente desde la secci贸n de lanzamientos:
 
-* [CLI by Steffen](https://steffenl.com/projects/dying-light-save-editor/releases).
+馃憠 [Descargar 煤ltima versi贸n](https://github.com/cgutierrez98/Dying-Light-Save-Editor-GUI/releases)
 
-## PY Requirements
+---
 
-* Python
+## Requisitos y Configuraci贸n de `editor.exe`
 
-```
-pip install requests packaging
-```
+Para descifrar y cifrar los archivos `.sav` de Dying Light, esta herramienta requiere el CLI de Steffen (`editor.exe`).
 
-* [CLI by Steffen](https://steffenl.com/projects/dying-light-save-editor/releases).
+1. Descarga `editor.exe` desde [Steffen's CLI Releases](https://steffenl.com/projects/dying-light-save-editor/releases).
+2. Puedes colocar `editor.exe` en la carpeta `C:\Editor`, en la misma carpeta del ejecutable, o seleccionarlo desde el men煤 de la aplicaci贸n:  
+   **Tools > Configure Steffen CLI (editor.exe)...**
 
-## Compilation
+---
 
-```
-pip install pyinstaller
-```
-* cd to main.py directory then
+## Desarrollo local
 
-```
-pyinstaller --onefile --noconsole main.py
-```
+Si deseas ejecutar o modificar el c贸digo fuente:
 
-## Plugins
+### 1. Clonar e instalar dependencias
 
-The plugin system lets you easily add new features to the app without touching the main project.
-
-Basically, a plugin can:
-* add new tabs or sections to the interface
-* create custom tools or mini-features
-* refresh or update parts of the UI
-* run actions in the background
-* extend the app however you want
-
-To use it, you just drop your plugin file into the "plugins" folder and the app will automatically detect and load it when it starts
-Each plugin is independent, so it鈥檚 super convenient to keep things organized and add/remove features whenever you want without breaking the whole app.
-
-## Note
-
-if you want any feature or weapons/skills added you can ask me to add it, i would be glad.
-
-i am still learning coding, the code source might burn your eyes. thats why all contributors are appreciated.
-
-## Desarrollo
-
-```
+```bash
+git clone https://github.com/cgutierrez98/Dying-Light-Save-Editor-GUI.git
+cd Dying-Light-Save-Editor-GUI
 pip install -r requirements.txt
+```
+
+### 2. Ejecutar la aplicaci贸n
+
+```bash
 python src/main.py
+```
+
+### 3. Ejecutar las pruebas
+
+```bash
 python -m pytest tests
 ```
 
-La versi髇 se define en `src/logic/version.py`. Build: `pyinstaller src/main.spec`.
+---
 
-## Seguridad y avisos
+## Compilaci贸n (Crear `.exe` con PyInstaller)
 
-* **Cierra el juego** antes de guardar y mant閚 tus backups. Se crea uno autom醫ico en `backups/` al guardar (se conservan los 30 鷏timos; si el backup falla, no se guarda). El guardado es at髆ico.
-* **Plugins** (`plugins/*.py`): se ejecutan sin aislamiento real. Cada plugin nuevo o modificado pide confirmaci髇 (hash SHA-256) la primera vez. Instala solo plugins de confianza.
-* Valores extremos (p. ej. cantidades m醲imas) en saves online pueden provocar baneos; 鷖alo bajo tu responsabilidad.
+La configuraci贸n del ejecutable est谩 definida en `src/main.spec` (modo `--noconsole` y empaquetado en un solo binario).
+
+Para compilar:
+
+```bash
+cd src
+pyinstaller main.spec --noconfirm
+```
+
+El ejecutable generado se ubicar谩 en la carpeta `src/dist/main.exe`.
+
+La versi贸n de la aplicaci贸n se centraliza en `src/logic/version.py`.
+
+---
+
+## Sistema de Plugins
+
+El sistema de plugins permite extender la interfaz y las funciones de la aplicaci贸n sin modificar el c贸digo base.
+
+* Los plugins se colocan en la carpeta `plugins/` (archivos `.py`).
+* La aplicaci贸n los detecta y carga al iniciar.
+* Pueden a帽adir nuevas pesta帽as, herramientas, acciones en segundo plano o modificar datos del inventario.
+
+---
+
+## Seguridad y Copias de Seguridad
+
+* **Cierra el juego antes de guardar:** Evita que el juego sobrescriba o bloquee el archivo mientras realizas modificaciones.
+* **Copias de seguridad obligatorias:** Al pulsar *Save Changes*, el editor crea autom谩ticamente una copia en la carpeta `backups/` junto a la partida. Si por alg煤n motivo no se puede crear la copia, el guardado se cancela para proteger tu partida. Se conservan las 30 copias m谩s recientes.
+* **Plugins:** Los plugins de Python se ejecutan con acceso a tu entorno. Por seguridad, la aplicaci贸n solicita confirmaci贸n mediante hash SHA-256 la primera vez que detecta un plugin nuevo o modificado. Carga 煤nicamente plugins de fuentes fiables.
+* **Partidas online:** Modificar valores a niveles extremos en partidas multijugador puede acarrear penalizaciones o incompatibilidades. Utiliza estas modificaciones con precauci贸n.
+
+---
+
+## Cr茅ditos y Agradecimientos
+
+* **[EllisGamingTv](https://github.com/EllisGamingTv/Dying-Light-Save-Editor-GUI)**: Creador original del proyecto Dying-Light-Save-Editor-GUI.
+* **[Steffen](https://steffenl.com/projects/dying-light-save-editor/releases)**: Creador de la herramienta de l铆nea de comandos `editor.exe` que permite descifrar y cifrar las partidas de Dying Light.

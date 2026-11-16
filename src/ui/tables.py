@@ -731,6 +731,7 @@ class TablesMixin:
                 return
             except Exception as e:
                 print("ERROR:", e, "| value:", new_value)
+                messagebox.showerror("Edit failed", f"Could not apply value '{new_value}':\n{e}")
                 return
 
             entry.destroy()

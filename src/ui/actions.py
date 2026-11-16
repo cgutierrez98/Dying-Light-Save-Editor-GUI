@@ -87,6 +87,7 @@ class ActionsMixin:
             import traceback
             print("[PLUGIN ERROR]")
             traceback.print_exc()
+            messagebox.showerror("Plugin error", f"The plugin '{plugin.get('name')}' failed:\n{e}")
 
         self.populate()
 

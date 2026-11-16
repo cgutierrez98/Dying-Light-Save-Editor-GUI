@@ -1,4 +1,4 @@
-﻿import requests
+import requests
 import threading
 import webbrowser
 
@@ -9,7 +9,7 @@ from logic.version import CURRENT_VERSION
 
 GITHUB_API = (
     "https://api.github.com/repos/"
-    "EllisGamingTv/Dying-Light-Save-Editor-GUI/releases/latest"
+    "cgutierrez98/Dying-Light-Save-Editor-GUI/releases/latest"
 )
 
 def check_updates_async(app):

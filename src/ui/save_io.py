@@ -1,80 +1,56 @@
-﻿"""Carga/guardado de saves, CLI de Steffen y backups."""
+"""Carga/guardado de saves, CLI de Steffen y backups."""
 from ui.common import *
 
 
 class SaveIOMixin:
+    def _remember_editor(self, path):
+        self.save_service.set_editor(path)
+        self.editor_exe_path = path
+        self.config_data["editor_exe_path"] = path
+        save_config(self.config_data)
+
     def select_editor_cli(self):
         selected = filedialog.askopenfilename(
             title="Select Steffen's CLI (editor.exe)",
             filetypes=[("Executable", "*.exe"), ("All files", "*.*")]
         )
         if selected and os.path.exists(selected):
-            self.editor_exe_path = selected
-            self.config_data["editor_exe_path"] = selected
-            save_config(self.config_data)
+            self._remember_editor(selected)
             messagebox.showinfo("CLI Configured", f"editor.exe set to:\n{selected}")
 
-    def get_editor_exe(self):
-        if self.editor_exe_path and os.path.exists(self.editor_exe_path):
-            return self.editor_exe_path
-
-        candidates = [
-            os.path.join(EDITOR_DIR, "editor.exe"),
-            os.path.join(EDITOR_DIR, "editor.exe.exe"),
-            os.path.join(os.path.dirname(sys.executable), "editor.exe"),
-            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "editor.exe"),
-        ]
-        for c in candidates:
-            if os.path.exists(c):
-                self.editor_exe_path = c
-                self.config_data["editor_exe_path"] = c
+    def ensure_editor(self):
+        """Devuelve la ruta de editor.exe, pidiendola al usuario si hace falta."""
+        found = self.save_service.find_editor()
+        if found:
+            if found != self.editor_exe_path:
+                self.editor_exe_path = found
+                self.config_data["editor_exe_path"] = found
                 save_config(self.config_data)
-                return c
-
-        which_path = shutil.which("editor.exe") or shutil.which("editor")
-        if which_path:
-            self.editor_exe_path = which_path
-            self.config_data["editor_exe_path"] = which_path
-            save_config(self.config_data)
-            return which_path
+            return found
 
         res = messagebox.askyesno(
-            "CLI Steffen Requerido",
-            "No se encontrÃ³ 'editor.exe' (el CLI de Steffen necesario para desencriptar saves).\n\n"
-            "Â¿Deseas buscar y seleccionar 'editor.exe' manualmente?\n\n"
-            "(Si no lo tienes, descÃ¡rgalo de https://steffenl.com/projects/dying-light-save-editor/releases)"
+            "Steffen CLI required",
+            "'editor.exe' (Steffen's CLI, needed to decrypt saves) was not found.\n\n"
+            "Do you want to locate it manually?\n\n"
+            "(If you don't have it, download it from https://steffenl.com/projects/dying-light-save-editor/releases)"
         )
         if res:
             selected = filedialog.askopenfilename(
-                title="Selecciona editor.exe (CLI de Steffen)",
+                title="Select editor.exe (Steffen's CLI)",
                 filetypes=[("Executable", "*.exe"), ("All files", "*.*")]
             )
             if selected and os.path.exists(selected):
-                self.editor_exe_path = selected
-                self.config_data["editor_exe_path"] = selected
-                save_config(self.config_data)
+                self._remember_editor(selected)
                 return selected
-
         return None
 
-    def _run_editor(self, args):
-        editor_exe = self.get_editor_exe()
-        if not editor_exe:
-            return None
-        try:
-            cwd = os.path.dirname(editor_exe) if os.path.exists(editor_exe) else (EDITOR_DIR if os.path.exists(EDITOR_DIR) else None)
-            creationflags = 0
-            if sys.platform == "win32":
-                creationflags = subprocess.CREATE_NO_WINDOW
-            return subprocess.run(
-                [editor_exe, *args],
-                cwd=cwd,
-                capture_output=True,
-                creationflags=creationflags
-            )
-        except Exception as e:
-            print(f"[ERROR] _run_editor: {e}")
-            return None
+    def _try_begin(self, status_text):
+        """Marca la app como ocupada de forma atomica. False si ya habia una operacion."""
+        with self._op_lock:
+            if self.is_busy:
+                return False
+            self.set_busy(True, status_text)
+            return True
 
     def load_save(self, ask_file=True, target_path=None):
         if self.is_busy:
@@ -101,7 +77,11 @@ class SaveIOMixin:
             messagebox.showerror("Error", f"No valid .sav file selected:\n{path}")
             return
 
-        self.set_busy(True, "Decrypting save file with Steffen CLI...")
+        if not self.ensure_editor():
+            return
+
+        if not self._try_begin("Decrypting save file with Steffen CLI..."):
+            return
 
         threading.Thread(
             target=self._worker_load_save,
@@ -111,30 +91,14 @@ class SaveIOMixin:
 
     def _worker_load_save(self, path):
         try:
-            ret = self._run_editor([
-                "sample",
-                path,
-                f"--patch={TEMP_JSON}"
-            ])
-
-            if ret is None or ret.returncode != 0:
-                self.after(0, lambda: self._on_load_error(
-                    "Could not decrypt the selected .sav file.\nMake sure editor.exe is the CLI by Steffen."
-                ))
-                return
-
-            if not os.path.exists(TEMP_JSON):
-                self.after(0, lambda: self._on_load_error(
-                    "Could not decrypt the selected .sav file.\nTemporary JSON file was not generated."
-                ))
-                return
-
-            with open(TEMP_JSON, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
+            data = self.save_service.load(path)
             self.after(0, lambda: self._on_load_success(path, data))
         except Exception as e:
-            self.after(0, lambda err=e: self._on_load_error(f"Error reading save data:\n{err}"))
+            print(f"[LOAD ERROR] {e}")
+            msg = str(e) if isinstance(e, SaveError) else f"Unexpected error reading save:\n{e}"
+            self.after(0, lambda m=msg: self._on_load_error(
+                f"Could not open the save.\n{m}\n\nMake sure editor.exe is the CLI by Steffen."
+            ))
 
     def _on_load_success(self, path, data):
         self.save_path = path
@@ -159,13 +123,17 @@ class SaveIOMixin:
             messagebox.showwarning("Warning", "No save loaded to save changes.")
             return
 
+        if not self.ensure_editor():
+            return
+
         self.focus()
 
-        # Tomamos snapshot profundo para que el hilo de guardado trabaje sin interferencias
+        # Snapshot profundo: el hilo de guardado no comparte estado con la UI
         data_snapshot = copy.deepcopy(self.current_data)
         save_path = self.save_path
 
-        self.set_busy(True, "Creating backup and encrypting save...")
+        if not self._try_begin("Creating backup and encrypting save..."):
+            return
 
         if async_mode:
             threading.Thread(
@@ -177,52 +145,20 @@ class SaveIOMixin:
             self._worker_save_changes(save_path, data_snapshot, on_success, False)
 
     def _worker_save_changes(self, save_path, data_snapshot, on_success, is_async=True):
+        def dispatch(fn):
+            if is_async:
+                self.after(0, fn)
+            else:
+                fn()
+
         try:
-            # 0. Validar datos antes de tocar nada
-            validate_save_data(data_snapshot)
-
-            # 1. Backup obligatorio: si falla, se aborta el guardado
-            backup_file = create_save_backup(save_path)
-            if not backup_file:
-                raise RuntimeError("No se pudo crear el backup; guardado cancelado para proteger tu save.")
-            prune_backups(save_path)
-
-            # 2. Escribir JSON temporal
-            with open(TEMP_JSON, "w", encoding="utf-8") as f:
-                json.dump(data_snapshot, f, indent=4)
-                f.flush()
-                os.fsync(f.fileno())
-
-            # 3. Compilar y encriptar archivo .sav con Steffen CLI
-            ret = self._run_editor([
-                "update",
-                save_path,
-                f"--patch={TEMP_JSON}",
-                f"--output={TEMP_SAVE}"
-            ])
-
-            if ret is None or ret.returncode != 0 or not os.path.exists(TEMP_SAVE):
-                err = "Could not update the .sav file with Steffen's CLI."
-                if is_async:
-                    self.after(0, lambda: self._on_save_error(err))
-                else:
-                    self._on_save_error(err)
-                return
-
-            # 4. Reemplazar archivo .sav original de forma segura
-            atomic_replace(TEMP_SAVE, save_path)
-
-            if is_async:
-                self.after(0, lambda: self._on_save_success(save_path, backup_file, on_success))
-            else:
-                self._on_save_success(save_path, backup_file, on_success)
-
+            backup_file = self.save_service.save(save_path, data_snapshot)
         except Exception as e:
-            err = f"Failed to save changes:\n{e}"
-            if is_async:
-                self.after(0, lambda: self._on_save_error(err))
-            else:
-                self._on_save_error(err)
+            print(f"[SAVE ERROR] {e}")
+            err = str(e) if isinstance(e, SaveError) else f"Failed to save changes:\n{e}"
+            dispatch(lambda m=err: self._on_save_error(m))
+            return
+        dispatch(lambda: self._on_save_success(save_path, backup_file, on_success))
 
     def _on_save_success(self, save_path, backup_file, on_success):
         self.mark_dirty(False)
@@ -241,7 +177,6 @@ class SaveIOMixin:
     def _on_save_error(self, err_msg):
         self.set_busy(False, "")
         messagebox.showerror("Error", err_msg)
-
     def show_backups_window(self):
         if not self.save_path:
             messagebox.showinfo("Backups", "Open a save file first to view its backups.")
@@ -299,19 +234,14 @@ class SaveIOMixin:
         ttk.Button(btn_box, text="Restore Selected Backup", style="Accent.TButton", command=restore_selected).pack(side=tk.LEFT)
         ttk.Button(btn_box, text="Close", command=win.destroy).pack(side=tk.RIGHT)
 
-    # ==================== POPULATE & TABS ====================
+    # ==================== PLUGINS / CLEANUP ====================
     def _confirm_plugin(self, name, path):
         return messagebox.askyesno(
-            "Plugin no verificado",
-            f"El plugin '{name}' es nuevo o ha cambiado.\n\n{path}\n\n"
-            "Los plugins se ejecutan SIN aislamiento y tienen acceso total a tu equipo.\n"
-            "Â¿Confiar en Ã©l y cargarlo?"
+            "Unverified plugin",
+            f"The plugin '{name}' is new or has changed.\n\n{path}\n\n"
+            "Plugins run WITHOUT isolation and have full access to your computer.\n"
+            "Trust it and load it?"
         )
 
     def cleanup(self):
-        for p in (TEMP_JSON, TEMP_SAVE):
-            try:
-                if os.path.exists(p):
-                    os.remove(p)
-            except Exception:
-                pass
+        self.save_service.cleanup()

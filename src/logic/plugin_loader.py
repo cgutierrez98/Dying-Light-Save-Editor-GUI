@@ -44,7 +44,7 @@ def _sha256(path):
     return h.hexdigest()
 
 
-def load_plugins(confirm=None, trusted=None):
+def load_plugins(confirm=None, trusted=None, on_error=None):
     """Carga los plugins de ./plugins.
 
     AVISO: el bloqueo de imports NO es una sandbox real; un plugin tiene acceso total.
@@ -178,5 +178,7 @@ def load_plugins(confirm=None, trusted=None):
             print(str(e))
 
             traceback.print_exc()
+            if on_error is not None:
+                on_error(file, str(e))
 
     return plugins
