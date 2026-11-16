@@ -13,6 +13,17 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
         self.geometry("1160x780")
         self.minsize(980, 640)
 
+        # Configurar icono de la aplicación
+        assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            assets_dir = os.path.join(sys._MEIPASS, "assets")
+        ico_file = os.path.join(assets_dir, "icon.ico")
+        if os.path.exists(ico_file):
+            try:
+                self.iconbitmap(ico_file)
+            except Exception:
+                pass
+
         self._orig_stdout = sys.stdout
         self._orig_stderr = sys.stderr
 
