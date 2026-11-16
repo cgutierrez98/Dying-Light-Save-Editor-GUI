@@ -63,3 +63,19 @@ Each plugin is independent, so itâ€™s super convenient to keep things organized 
 if you want any feature or weapons/skills added you can ask me to add it, i would be glad.
 
 i am still learning coding, the code source might burn your eyes. thats why all contributors are appreciated.
+
+## Desarrollo
+
+```
+pip install -r requirements.txt
+python src/main.py
+python -m pytest tests
+```
+
+La versión se define en `src/logic/version.py`. Build: `pyinstaller src/main.spec`.
+
+## Seguridad y avisos
+
+* **Cierra el juego** antes de guardar y mantén tus backups. Se crea uno automático en `backups/` al guardar (se conservan los 30 últimos; si el backup falla, no se guarda). El guardado es atómico.
+* **Plugins** (`plugins/*.py`): se ejecutan sin aislamiento real. Cada plugin nuevo o modificado pide confirmación (hash SHA-256) la primera vez. Instala solo plugins de confianza.
+* Valores extremos (p. ej. cantidades máximas) en saves online pueden provocar baneos; úsalo bajo tu responsabilidad.

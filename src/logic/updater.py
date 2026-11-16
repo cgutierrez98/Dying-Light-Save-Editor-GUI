@@ -1,11 +1,11 @@
-import requests
+﻿import requests
 import threading
 import webbrowser
 
 from packaging import version
 from tkinter import messagebox
 
-CURRENT_VERSION = "1.6"
+from logic.version import CURRENT_VERSION
 
 GITHUB_API = (
     "https://api.github.com/repos/"
@@ -29,7 +29,7 @@ def check_updates(app):
 
         data = response.json()
 
-        latest = data["tag_name"].replace("v", "")
+        latest = data["tag_name"].lstrip("vV")
 
         if version.parse(latest) > version.parse(CURRENT_VERSION):
 

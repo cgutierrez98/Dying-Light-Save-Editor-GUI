@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.spec
 
 # PyInstaller / Build
 build/
@@ -17,3 +16,4 @@ backups/
 # IDE
 .vscode/
 .idea/
+

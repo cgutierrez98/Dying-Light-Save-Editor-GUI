@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import shutil
 from datetime import datetime
@@ -16,9 +16,11 @@ def load_config():
     return {}
 
 def save_config(config_dict):
+    tmp = CONFIG_FILE + ".tmp"
     try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(config_dict, f, indent=4)
+        os.replace(tmp, CONFIG_FILE)
     except Exception as e:
         print(f"[CONFIG] Error saving config: {e}")
 
@@ -61,3 +63,46 @@ def list_save_backups(save_path):
     # Sort newest first
     backups.sort(key=lambda x: os.path.getmtime(x), reverse=True)
     return backups
+
+
+MAX_BACKUPS = 30
+
+
+def prune_backups(save_path, keep=MAX_BACKUPS):
+    """Elimina los backups mas antiguos, conservando `keep`. El orden sale del timestamp del nombre."""
+    removed = []
+    backups = sorted(list_save_backups(save_path), key=os.path.basename, reverse=True)
+    for old in backups[keep:]:
+        try:
+            os.remove(old)
+            removed.append(old)
+        except OSError as e:
+            print(f"[BACKUP] Could not remove {old}: {e}")
+    return removed
+
+
+def atomic_replace(src, dst, keep_source=False):
+    """Reemplaza `dst` por `src` de forma atomica.
+
+    Copia primero a un temporal en la MISMA carpeta que `dst` (asi os.replace es atomico
+    aunque src este en otra unidad) y luego lo renombra encima del destino.
+    """
+    tmp = os.path.join(os.path.dirname(os.path.abspath(dst)), f".{os.path.basename(dst)}.tmp_{os.getpid()}")
+    try:
+        shutil.copyfile(src, tmp)
+        with open(tmp, "r+b") as f:
+            os.fsync(f.fileno())
+        os.replace(tmp, dst)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    if not keep_source:
+        try:
+            os.remove(src)
+        except OSError:
+            pass
+
+

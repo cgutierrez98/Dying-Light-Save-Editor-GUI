@@ -3,6 +3,7 @@ import importlib.util
 import sys
 import traceback
 import builtins
+import hashlib
 
 BANNED_MODULES = {
     "os",
@@ -35,7 +36,22 @@ def get_base_path():
     )
 
 
-def load_plugins():
+def _sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_plugins(confirm=None, trusted=None):
+    """Carga los plugins de ./plugins.
+
+    AVISO: el bloqueo de imports NO es una sandbox real; un plugin tiene acceso total.
+    Por eso, si se pasa `confirm(name, path)`, cada plugin nuevo o modificado (por hash
+    SHA-256) requiere confirmacion del usuario. Los aceptados se guardan en `trusted`.
+    Sin `confirm` se mantiene el comportamiento anterior.
+    """
     plugins = []
 
     base_path = get_base_path()
@@ -81,6 +97,14 @@ def load_plugins():
             plugin_folder,
             file
         )
+
+        if confirm is not None and trusted is not None:
+            digest = _sha256(file_path)
+            if trusted.get(file) != digest:
+                if not confirm(file, file_path):
+                    print(f"[PLUGIN] Skipped untrusted plugin: {file}")
+                    continue
+                trusted[file] = digest
 
         module_name = (
             f"plugin_{os.path.splitext(file)[0]}"
