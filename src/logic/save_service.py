@@ -89,6 +89,8 @@ class SaveService:
                 return json.load(f)
         except (OSError, ValueError) as e:
             raise SaveError(f"Error reading save data:\n{e}") from e
+        finally:
+            self._remove(self.temp_json)
 
     def save(self, save_path, data):
         """Valida, hace backup obligatorio, cifra y reemplaza el .sav de forma atomica.
@@ -108,7 +110,7 @@ class SaveService:
         try:
             self._remove(self.temp_save)
             with open(self.temp_json, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4)
+                json.dump(data, f, indent=4, ensure_ascii=False)
                 f.flush()
                 os.fsync(f.fileno())
 
@@ -121,6 +123,9 @@ class SaveService:
             raise
         except OSError as e:
             raise SaveError(f"Failed to save changes:\n{e}") from e
+        finally:
+            self._remove(self.temp_json)
+            self._remove(self.temp_save)
         return backup
 
     def cleanup(self):

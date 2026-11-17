@@ -44,10 +44,8 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
         saved_save_path = self.config_data.get("last_save_path")
         if saved_save_path and os.path.exists(saved_save_path):
             self.save_path = saved_save_path
-        elif os.path.exists(SAVE_PATH):
-            self.save_path = SAVE_PATH
         else:
-            self.save_path = None
+            self.save_path = find_default_save_path()
 
         self.json_path = DEFAULT_JSON
         self.current_data = None
@@ -273,9 +271,7 @@ class SaveEditorApp(SaveIOMixin, DialogsMixin, TablesMixin, ActionsMixin, tk.Tk)
     def _on_delete_shortcut(self, event=None):
         if self._is_text_widget_focused():
             return
-        selected_tab = self.notebook.select()
-        if selected_tab == str(self.tab_skills):
-            self.delete_selected_skills()
+        self.delete_selected_items()
 
     def _on_search_shortcut(self):
         selected_tab = self.notebook.select()

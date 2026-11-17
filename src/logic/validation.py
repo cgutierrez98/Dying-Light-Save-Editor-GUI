@@ -1,7 +1,9 @@
-"""Validacion basica del JSON del save antes de cifrarlo."""
+"""Validacion del JSON del save antes de cifrarlo."""
 import math
 
+INT32_MIN = -2**31
 INT32_MAX = 2**31 - 1
+UINT32_MAX = 2**32 - 1
 
 
 class SaveValidationError(ValueError):
@@ -19,8 +21,8 @@ def _walk(node, path="$"):
         if math.isnan(node) or math.isinf(node):
             raise SaveValidationError(f"Valor no valido (NaN/Inf) en {path}")
     elif isinstance(node, int) and not isinstance(node, bool):
-        if abs(node) > 2**63 - 1:
-            raise SaveValidationError(f"Entero fuera de rango en {path}")
+        if node < INT32_MIN or node > UINT32_MAX:
+            raise SaveValidationError(f"Entero fuera de rango 32-bit ({node}) en {path}")
 
 
 def validate_save_data(data):

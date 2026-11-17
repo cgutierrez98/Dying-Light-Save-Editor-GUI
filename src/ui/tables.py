@@ -484,7 +484,21 @@ class TablesMixin:
 
             combo_slot.bind("<<ComboboxSelected>>", make_slot_handler(slot_idx, slot_var))
 
+    def find_tree_row_for_item(self, tree, item):
+        for (t, rid), (_, _, it) in self.global_map.items():
+            if t == tree and it is item:
+                if tree.exists(rid):
+                    return rid
+        return None
+
     def refresh_tree_row(self, tree, row_id, item):
+        if not tree:
+            return
+        actual_row = row_id
+        if not tree.exists(actual_row):
+            actual_row = self.find_tree_row_for_item(tree, item)
+            if not actual_row or not tree.exists(actual_row):
+                return
         columns = tree["columns"]
         values = []
         for col in columns:
@@ -507,7 +521,7 @@ class TablesMixin:
                 values.append(", ".join(disp_socks))
             else:
                 values.append(item.get(col, ""))
-        tree.item(row_id, values=values)
+        tree.item(actual_row, values=values)
 
     # ==================== TABLA Y FILTRADO ====================
     def create_table(self, parent, columns, data, map_ref, tab_key=None, on_select_callback=None):
@@ -574,6 +588,8 @@ class TablesMixin:
         menu.add_command(label="Copy Item", command=lambda: self.copy_row(tree))
         menu.add_command(label="Paste Item", command=lambda: self.paste_row(tree))
         menu.add_command(label="Duplicate Item", command=lambda: self.duplicate_row(tree))
+        menu.add_separator()
+        menu.add_command(label="🗑️ Delete Item", command=lambda: self.delete_selected_items(tree))
 
         def show_menu(event):
             row = tree.identify_row(event.y)
@@ -690,10 +706,32 @@ class TablesMixin:
         entry.insert(0, str(current_value) if current_value is not None else "")
         entry.focus()
 
-        def save_edit(e=None):
-            new_value = entry.get().strip()
-            if (tree, row_id) not in self.global_map:
+        is_closing = [False]
+
+        def cancel_edit(e=None):
+            if is_closing[0]:
+                return
+            is_closing[0] = True
+            try:
                 entry.destroy()
+            except Exception:
+                pass
+
+        def save_edit(e=None):
+            if is_closing[0]:
+                return
+            is_closing[0] = True
+
+            try:
+                new_value = entry.get().strip()
+            except Exception:
+                return
+
+            if (tree, row_id) not in self.global_map:
+                try:
+                    entry.destroy()
+                except Exception:
+                    pass
                 return
 
             index, parent_list, item = self.global_map[(tree, row_id)]
@@ -703,16 +741,29 @@ class TablesMixin:
                     item[key] = new_value
 
                 elif key == "stacks":
+                    val = int(new_value)
+                    if val < 0 or val > 2**31 - 1:
+                        raise ValueError("Must be between 0 and 2,147,483,647")
                     if "stacks" in item:
-                        item["stacks"] = int(new_value)
+                        item["stacks"] = val
                     elif "unknown" in item and "unknown001" in item["unknown"]:
-                        item["unknown"]["unknown001"] = int(new_value)
+                        item["unknown"]["unknown001"] = val
 
                 elif key in ["quantity", "repairs", "id"]:
-                    item[key] = int(new_value)
+                    val = int(new_value)
+                    if key in ["quantity", "id"] and val <= 0:
+                        raise ValueError(f"{key.capitalize()} must be greater than 0")
+                    if key == "repairs" and val < 0:
+                        raise ValueError("Repairs cannot be negative")
+                    if val > 2**31 - 1:
+                        raise ValueError("Number exceeds 32-bit limit")
+                    item[key] = val
 
                 elif key == "condition":
-                    item[key] = float(new_value)
+                    val = float(new_value)
+                    if val < 0:
+                        raise ValueError("Condition cannot be negative")
+                    item[key] = val
 
                 elif key == "craftPlan":
                     item[key] = new_value
@@ -727,18 +778,29 @@ class TablesMixin:
                 self.mark_dirty(True)
 
             except ValueError as ve:
-                messagebox.showerror("Invalid Input", f"Value '{new_value}' is not valid for {key}.\nPlease enter a valid number.")
+                try:
+                    entry.destroy()
+                except Exception:
+                    pass
+                messagebox.showerror("Invalid Input", f"Value '{new_value}' is not valid for {key}:\n{ve}")
                 return
             except Exception as e:
+                try:
+                    entry.destroy()
+                except Exception:
+                    pass
                 print("ERROR:", e, "| value:", new_value)
                 messagebox.showerror("Edit failed", f"Could not apply value '{new_value}':\n{e}")
                 return
 
-            entry.destroy()
+            try:
+                entry.destroy()
+            except Exception:
+                pass
 
         entry.bind("<Return>", save_edit)
         entry.bind("<FocusOut>", save_edit)
-        entry.bind("<Escape>", lambda e: entry.destroy())
+        entry.bind("<Escape>", cancel_edit)
 
     # ==================== STATS TAB ====================
     def create_stats(self, parent, player):
@@ -847,6 +909,13 @@ class TablesMixin:
             storage.get("items3")
         ]
 
+        all_existing = []
+        for lst in json_lists:
+            if isinstance(lst, list):
+                all_existing.extend(lst)
+        existing_ids = [it.get("id") for it in all_existing if isinstance(it, dict) and isinstance(it.get("id"), int)]
+        next_id = (max(existing_ids) + 1) if existing_ids else 5000000
+
         for row_id in selected:
             if (tree, row_id) not in self.global_map:
                 continue
@@ -855,7 +924,8 @@ class TablesMixin:
             new_item = copy.deepcopy(item)
 
             if "id" in new_item and isinstance(new_item["id"], int):
-                new_item["id"] += 1000000
+                new_item["id"] = next_id
+                next_id += 1
 
             appended = False
             for target_list in json_lists:

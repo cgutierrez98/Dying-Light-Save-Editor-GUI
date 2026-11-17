@@ -28,12 +28,21 @@ def check_updates(app):
             return
 
         data = response.json()
+        tag = data.get("tag_name", "")
+        if not tag:
+            return
 
-        latest = data["tag_name"].lstrip("vV")
+        latest = tag.lstrip("vV")
 
         if version.parse(latest) > version.parse(CURRENT_VERSION):
 
             def show_popup():
+                try:
+                    if hasattr(app, "winfo_exists") and not app.winfo_exists():
+                        return
+                except Exception:
+                    return
+
                 result = messagebox.askyesno(
                     "Update Available",
                     f"A new version is available.\n\n"
@@ -43,9 +52,14 @@ def check_updates(app):
                 )
 
                 if result:
-                    webbrowser.open(data["html_url"])
+                    url = data.get("html_url", "https://github.com/cgutierrez98/Dying-Light-Save-Editor-GUI/releases")
+                    webbrowser.open(url)
 
-            app.after(0, show_popup)
+            try:
+                if hasattr(app, "winfo_exists") and app.winfo_exists():
+                    app.after(0, show_popup)
+            except Exception:
+                pass
 
     except Exception as e:
         print("[Updater Error]", e)

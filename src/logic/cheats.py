@@ -31,25 +31,28 @@ SOCKET_UPGRADES = [
 ]
 
 def max_kings(item):
-    item["upgradeSockets"] = [KING] * 4
+    if isinstance(item, dict):
+        item["upgradeSockets"] = [KING] * 4
 
 
 def max_quantity(item):
-    if "quantity" in item:
+    if isinstance(item, dict) and "quantity" in item:
         item["quantity"] = 999999999
 
 
 def max_skill(item):
+    if not isinstance(item, dict):
+        return
     if "stacks" in item:
         item["stacks"] = 9999
-    elif "unknown" in item and "unknown001" in item["unknown"]:
+    elif "unknown" in item and isinstance(item["unknown"], dict) and "unknown001" in item["unknown"]:
         item["unknown"]["unknown001"] = 9999
         
 def set_rarity(item, rarity):
     if not isinstance(item, dict):
         return
 
-    if "attributes" not in item:
+    if "attributes" not in item or not isinstance(item["attributes"], dict):
         item["attributes"] = {}
 
     item["attributes"]["color"] = rarity
@@ -62,8 +65,10 @@ def get_duplicate_id_map(items):
     id_map = {}
 
     for item in items:
+        if not isinstance(item, dict):
+            continue
         item_id = item.get("id")
-        if not item_id:
+        if item_id is None:
             continue
 
         id_map.setdefault(item_id, []).append(item)

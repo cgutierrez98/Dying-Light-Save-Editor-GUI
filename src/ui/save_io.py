@@ -64,7 +64,15 @@ class SaveIOMixin:
             if not path and not ask_file and self.save_path:
                 path = self.save_path
             else:
-                initial_dir = os.path.dirname(self.save_path) if self.save_path else (EDITOR_DIR if os.path.exists(EDITOR_DIR) else None)
+                initial_dir = None
+                if self.save_path and os.path.exists(os.path.dirname(self.save_path)):
+                    initial_dir = os.path.dirname(self.save_path)
+                else:
+                    steam_dirs = find_steam_save_locations()
+                    if steam_dirs:
+                        initial_dir = steam_dirs[0]
+                    elif os.path.exists(EDITOR_DIR):
+                        initial_dir = EDITOR_DIR
                 path = filedialog.askopenfilename(
                     title="Select Dying Light Save File",
                     initialdir=initial_dir,
@@ -223,6 +231,7 @@ class SaveIOMixin:
                 try:
                     create_save_backup(self.save_path)
                     atomic_replace(chosen_backup, self.save_path, keep_source=True)
+                    self.mark_dirty(False)
                     messagebox.showinfo("Restored", "Backup restored successfully! Reloading save...")
                     win.destroy()
                     self.load_save(ask_file=False)

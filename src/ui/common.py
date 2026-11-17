@@ -11,6 +11,7 @@ import copy
 import sys
 import tempfile
 import threading
+import glob
 from datetime import datetime
 
 from logic.cheats import (
@@ -35,12 +36,56 @@ from ui.theme import (
 )
 
 EDITOR_DIR = r"C:\Editor"
-SAMPLE_BAT = os.path.join(EDITOR_DIR, "sample.bat")
-UPDATE_BAT = os.path.join(EDITOR_DIR, "update.bat")
 DEFAULT_JSON = os.path.join(EDITOR_DIR, "save_coop_0.sav(edited).json")
 SAVE_PATH = os.path.join(EDITOR_DIR, "save_coop_0.sav")
-JSON_PATH = os.path.join(EDITOR_DIR, "save_coop_0.sav(edited).json")
 
 # Carpetas y archivos temporales seguros
 TEMP_DIR = os.path.join(tempfile.gettempdir(), "dying_light_save_editor")
 os.makedirs(TEMP_DIR, exist_ok=True)
+
+
+def find_steam_save_locations():
+    """Busca posibles carpetas de guardado de Dying Light en Steam (AppID 239140)."""
+    candidates = []
+    steam_roots = []
+    if sys.platform == "win32":
+        try:
+            import winreg
+            k = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam")
+            val, _ = winreg.QueryValueEx(k, "SteamPath")
+            if val and os.path.exists(val):
+                steam_roots.append(os.path.normpath(val))
+        except Exception:
+            pass
+        for drive in ["C", "D", "E", "F"]:
+            p = f"{drive}:\\Program Files (x86)\\Steam"
+            if p not in steam_roots and os.path.exists(p):
+                steam_roots.append(p)
+            p2 = f"{drive}:\\Steam"
+            if p2 not in steam_roots and os.path.exists(p2):
+                steam_roots.append(p2)
+
+    for s_root in steam_roots:
+        pattern = os.path.join(s_root, "userdata", "*", "239140", "remote", "out", "save")
+        for match in glob.glob(pattern):
+            if os.path.isdir(match) and match not in candidates:
+                candidates.append(match)
+    return candidates
+
+
+def find_default_save_path():
+    """Devuelve la ruta de guardado por defecto si existe, o None."""
+    for save_dir in find_steam_save_locations():
+        for fname in ["save_coop_0.sav", "save_coop_1.sav", "default.sav"]:
+            candidate = os.path.join(save_dir, fname)
+            if os.path.exists(candidate):
+                return candidate
+        savs = glob.glob(os.path.join(save_dir, "*.sav"))
+        if savs:
+            return savs[0]
+
+    legacy = os.path.join(EDITOR_DIR, "save_coop_0.sav")
+    if os.path.exists(legacy):
+        return legacy
+
+    return None
